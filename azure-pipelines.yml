@@ -1,0 +1,74 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  SHA7: $(Build.SourceVersion:0:7)
+  TAG: ''
+
+jobs:
+- job: Build_and_Publish
+  displayName: 'Build and publish to Docker'
+  steps:
+
+    - task: Bash@3
+      displayName: 'Get short SHA'
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "##vso[task.setvariable variable=SHA7]$(echo $(Build.SourceVersion) | cut -c1-7)"
+    
+    - task: DockerInstaller@0
+      displayName: 'Install Docker'
+
+    - script: |
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      displayName: 'Set up QEMU'
+
+    - script: |
+        docker buildx create --use
+      displayName: 'Set up Docker Buildx'
+
+    - task: Docker@2
+      displayName: 'Login to DockerHub'
+      inputs:
+        containerRegistry: 'dockerhubConnection'
+        command: 'login'
+        username: $(DOCKERHUB_USERNAME)
+        password: $(DOCKERHUB_TOKEN)
+
+    - task: Bash@3
+      displayName: 'Calculate tags'
+      inputs:
+        targetType: 'inline'
+        script: |
+          if [[ "$(Build.SourceBranchName)" == 'main' ]]; then
+            TAG="poornimabyregowda19/python-sample-vscode-flask-tutorial:$(SHA7)"
+          else
+            TAG="poornimabyregowda19/python-sample-vscode-flask-tutorial:$(SHA7)"
+          fi
+          echo "##vso[task.setvariable variable=TAG]$TAG"
+
+    - task: Docker@2
+      displayName: 'Build and Push Docker Image'
+      inputs:
+        containerRegistry: 'dockerhubConnection'
+        repository: 'poornima1911/python-sample-vscode-flask-tutorial'
+        command: 'buildAndPush'
+        Dockerfile: 'Dockerfile'
+        tags: |
+          $(TAG)
+        arguments: |
+          --build-arg DD_GIT_REPOSITORY_URL=$(Build.Repository.Uri)
+          --build-arg DD_GIT_COMMIT_SHA=$(Build.SourceVersion)
+
+
