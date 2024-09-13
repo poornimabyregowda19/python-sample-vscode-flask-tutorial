@@ -3,7 +3,7 @@ trigger:
 - main # Trigger pipeline on push to the main branch
 
 pool:
-  vmImage: 'ubuntu-latest' # VM image to run the pipeline on
+  name: 'Self-Hosted-Pool' # Self-hosted pool name
 
 steps:
 - task: Docker@2
